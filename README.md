@@ -8,11 +8,13 @@ Currently supports only subset of IPMI specification, suitable for dealing with 
 Synopsis
 --------
 
-  ipmitool fru read 0 fru.bin
-  ./fru2yml.py fru.bin fru.yaml
-  $EDITOR fru.yaml
-  ./fru2yml.py fru.yaml fru.bin
-  ipmitool fru write 0 fru.bin
+```
+ipmitool fru read 0 fru.bin
+./fru2yml.py fru.bin fru.yaml
+$EDITOR fru.yaml
+./fru2yml.py fru.yaml fru.bin
+ipmitool fru write 0 fru.bin
+```
 
 
 Usage
