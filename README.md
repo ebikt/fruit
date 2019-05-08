@@ -9,11 +9,11 @@ Synopsis
 --------
 
 ```
-ipmitool fru read 0 fru.bin
-./fru2yml.py fru.bin fru.yaml
+ipmitool fru read 0 fru-orig.bin
+./fru2yml.py fru-orig.bin fru.yaml
 $EDITOR fru.yaml
-./fru2yml.py fru.yaml fru.bin
-ipmitool fru write 0 fru.bin
+./fru2yml.py fru.yaml fru-new.bin
+ipmitool fru write 0 fru-new.bin
 ```
 
 
