@@ -1,5 +1,5 @@
-fru2yml
-=======
+FruIt
+=====
 
 Bidirectional convertor between IPMI FRU binary format and Yaml representation.
 
@@ -10,9 +10,9 @@ Synopsis
 
 ```
 ipmitool fru read 0 fru-orig.bin
-./fru2yml.py fru-orig.bin fru.yaml
+./fruit.py fru-orig.bin fru.yaml
 $EDITOR fru.yaml
-./fru2yml.py fru.yaml fru-new.bin
+./fruit.py fru.yaml fru-new.bin
 ipmitool fru write 0 fru-new.bin
 ```
 
@@ -20,12 +20,19 @@ ipmitool fru write 0 fru-new.bin
 Usage
 -----
 
-  ./fru2yml.py [INPUTFILE [OUTPUTFILE]]
+  ./fruit.py [INPUTFILE [OUTPUTFILE]]
 
 If OUTPUTFILE is not specified, fru2yml outputs to stdout (with refusing to write binary data to terminal).
 If INPUTFILE is also not specified then fru2yml reads input from stdin.
 
 If input file starts with byte "\x01" then conversion from binary to yaml is performed. Otherwise conversion from yaml to binary is performed.
+
+FruIt can be also used as library.
+```
+  # fruit.Val = Union[str, int, List[str], None]
+  fruit.decode(data_in: bytes) -> Dict[str, Dict[str, fruit.Val]]
+  fruit.encode(cfg: Dict[str, Dict[str, fruit.Val]]) -> bytes
+```
 
 External sources
 ----------------

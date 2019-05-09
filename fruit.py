@@ -11,6 +11,15 @@ MYPY=False
 if MYPY:
     from typing import Any, Dict, List, Union, Tuple
     Val = Union[str, int, List[str], None]
+    FruEntryDef = Union[str, Tuple[str, str], Tuple[str, str, int, int, int]]
+    FruTableDef = Tuple[FruEntryDef, ...]
+
+    #Just shut up MYPY
+    def cfgKeys(dic): # type: (Dict[str, Val]) -> List[str]
+        return []
+else:
+    def cfgKeys(dic):
+        return sorted(list(dic.keys()))
 
 # {{{ auxiliary functions
 def div8(n): # type: (int) -> int
@@ -22,8 +31,8 @@ def checksum(b): # type: (bytearray) -> int
 # }}}
 
 FRU_TABLE_DEF = ( # {{{
-    (None, 1),
-    (None, 0),
+    1,
+    0,
     ("chassis",
         ("B", "type", 2, 1, 0x20),
         "partno",
@@ -48,13 +57,36 @@ FRU_TABLE_DEF = ( # {{{
         "asset",
         "fru"
     ),
-    (None, 0),
-    (None, 0),
-) # type: Tuple[tuple, ...]
+    0,
+    0,
+) # type: Tuple[Union[int, FruTableDef], ...]
 
 assert len(FRU_TABLE_DEF) % 8 == 7
 # }}}
 
+
+class ExceptionWithMsg(Exception): # {{{ Typed Exception for MYPY
+    message = None # type: str
+    def __init__(self, message): # type: (str) -> None
+        self.message = message
+        super(ExceptionWithMsg, self).__init__(message)
+# }}}
+
+class EncoderError(ExceptionWithMsg): # {{{
+    pass
+# }}}
+
+class DecoderError(ExceptionWithMsg): # {{{
+    pass
+# }}}
+
+class EndOfTable(Exception): # {{{
+    consumed = 0 # type: int
+    def __init__(self, consumed): # type: (int) -> None
+        self.consumed = consumed
+        super(EndOfTable, self).__init__(consumed)
+    pass
+# }}}
 
 
 class Logger(object): # {{{
@@ -82,19 +114,6 @@ class StdErrLogger(Logger):
 # }}}
 
 
-class EncoderError(Exception): # {{{
-    pass
-# }}}
-
-class DecoderError(Exception): # {{{
-    pass
-# }}}
-
-class EndOfTable(Exception): # {{{
-    pass
-# }}}
-
-
 class Entry(object): # {{{
     key     = None # type: str
     default = None # type: Val
@@ -113,7 +132,7 @@ class Entry(object): # {{{
         try:
             self.enc_validate()
         except EncoderError as e:
-            EncoderError(self.key + ': ' + e.args[0])
+            EncoderError(self.key + ': ' + e.message)
         self.enc_append(data)
 
     def save_val(self, cfg): # type: (Dict[str, Val]) -> None
@@ -215,7 +234,7 @@ def packedAscii(data): # type: (bytes) -> str
         bits += 8
         while bits > 6:
             bits -= 6
-            rem = bitval % (2**bits)
+            rem = bitval % (1 << bits)
             ret.append(32 + rem)
             bitval = (bitval - rem) >> 6
         if bits == 6:
@@ -283,7 +302,7 @@ class OemStr(Entry): # {{{
             try:
                 s.enc_validate()
             except EncoderError as e:
-                raise EncoderError(" item %d: %s" % (i, e.args[0]))
+                raise EncoderError(" item %d: %s" % (i, e.message))
             self.strs.append(s)
 
     def enc_append(self, data): # type: (bytearray) -> None
@@ -299,7 +318,7 @@ class OemStr(Entry): # {{{
             try:
                 pos += s.decode(data[pos:], tname)
             except EndOfTable as e:
-                return pos + int(e.args[0])
+                return pos + e.consumed
             self.val.append(s.val)
 # }}}
 
@@ -315,8 +334,8 @@ class Table(object): # {{{
     name    = None # type: str
     entries = None # type: List[Entry]
 
-    def __init__(self, logger, spec, pos, offset = 0): # type: (Logger, tuple, int, int) -> None
-        def mkentry(espec): # type: (tuple) -> Entry
+    def __init__(self, logger, spec, pos, offset = 0): # type: (Logger, FruTableDef, int, int) -> None
+        def mkentry(espec): # type: (FruEntryDef) -> Entry
             """ Creates Entry() object from entry specification tuple """
             if not isinstance(espec, tuple):
                 espec = ("S", espec)
@@ -324,7 +343,9 @@ class Table(object): # {{{
         self.logger = logger
         self.pos = pos
         self.offset = offset
-        self.name = spec[0]
+        name = spec[0]
+        assert isinstance(name, str)
+        self.name = name
         self.entries = [ mkentry(x) for x in spec[1:] ]
         self.entries.append(OemStr("oem"))
         for e in self.entries: e.setlogger(logger)
@@ -338,12 +359,14 @@ class Table(object): # {{{
                 try:
                     entry.process(self.cfg, data)
                 except EncoderError as e:
-                    raise EncoderError("%s.%s" % (self.name, e.args[0]))
+                    raise EncoderError("%s.%s" % (self.name, e.message))
             self.close(data)
         else:
             data[self.pos] = 0
         if len(self.cfg) > 0:
-            raise EncoderError("%s: Unknown configuration entries: %s" % (self.name, ", ".join(self.cfg.keys())))
+            keys   = cfgKeys(self.cfg)
+            raise EncoderError("%s: Unknown configuration entries: %s"
+                    % (self.name, ', '.join(keys)))
 
     def cfgpop(self, cfg): # type: (Dict[str,Dict[str,Val]]) -> None
         self.cfg = cfg.pop(self.name, {})
@@ -379,11 +402,11 @@ class Table(object): # {{{
                 except EndOfTable as e:
                     self.logger.warning("Table ended when parsing predefined fields.")
                     eot = True
-                    pos += e.args[0]
+                    pos += e.consumed
                     entry.decode_default()
                 entry.save_val(ret)
         except DecoderError as e:
-            raise DecoderError("%s.%s" % (self.name, e.args[0]))
+            raise DecoderError("%s.%s" % (self.name, e.message))
         return ret
     # }}}
 
@@ -418,11 +441,11 @@ class FruEncoder(object): # {{{
 
     def prepare_header(self): # type: () -> None # {{{
         for hdr_entry in FRU_TABLE_DEF:
-            if hdr_entry[0] is None:
-                self.data.append(hdr_entry[1])
-            else:
+            if isinstance(hdr_entry, tuple):
                 self.tables.append(Table( self.logger, hdr_entry, len(self.data) ))
                 self.data.append(0)
+            else:
+                self.data.append(hdr_entry)
         self.hdr_sum_pos = len(self.data)
         self.data.append(0)
         assert len(self.data) % 8 == 0
@@ -452,12 +475,13 @@ class FruDecoder(object): # {{{
         hdrlen = len(FRU_TABLE_DEF)
         try:
             for i in range(hdrlen):
-                if FRU_TABLE_DEF[i][0] is None:
-                    if self.data[i] != FRU_TABLE_DEF[i][1]:
-                        self.logger.warning("Header entry %d contains unsupported value %d" % (i, self.data[i]))
-                else:
+                tablespec = FRU_TABLE_DEF[i]
+                if isinstance(tablespec, tuple):
                     torder.append(self.data[i])
-                    self.tables.append(Table( self.logger, FRU_TABLE_DEF[i], i, self.data[i]*8 ))
+                    self.tables.append(Table( self.logger, tablespec, i, self.data[i]*8 ))
+                else:
+                    if self.data[i] != tablespec:
+                        self.logger.warning("Header entry %d contains unsupported value %d" % (i, self.data[i]))
             if sum(self.data[:hdrlen + 1]) % 256 != 0:
                 self.logger.decodererror("Invalid header checksum (got %d, expected %d)" %
                                         (self.data[hdrlen], checksum(self.data[:hdrlen])))
@@ -522,3 +546,61 @@ def decode(data, logger = None): # type: (bytes, Logger) -> Dict[str, Dict[str, 
 
 def encode(cfg, logger = None): # type: (Dict[str, Dict[str, Val]], Logger) -> bytearray
     return FruEncoder(logger).encode(cfg)
+
+
+if __name__ == "__main__":
+    import os, yaml
+    def error(msg): # type: (str) -> None
+        sys.stderr.write("Err: %s\n" % (msg,))
+        sys.exit(1)
+
+    def process_data(data_in): # type: (bytes) -> Tuple[bytes, bool] # {{{
+        firstbyte = bytearray(data_in[0:1])
+        if len(firstbyte) == 0:
+            error("empty input")
+        if firstbyte[0] == 1:
+            cfg       = decode(data_in)
+            if MYPY:
+                data_out = b''
+            else:
+                data_out  = yaml.dump(cfg).encode('utf-8')
+            is_binary = False
+        else:
+            cfg       = yaml.load(data_in) # type: ignore
+            data_out  = encode(cfg)
+            is_binary = True
+        return data_out, is_binary
+    # }}}
+
+    def read_input(): # type: () -> bytes # {{{
+        if len(sys.argv) > 1:
+            with open(sys.argv[1], "rb") as f:
+                data_in = f.read()
+        else:
+            try:
+                data_in = sys.stdin.buffer.read()
+            except AttributeError:
+                if MYPY:
+                    data_in = b''
+                else:
+                    data_in = sys.stdin.read()
+        return data_in
+    # }}}
+
+    def write_output(data_out, is_binary): # type: (bytes, bool) -> None # {{{
+        if len(sys.argv) > 2:
+            with open(sys.argv[2], "wb") as f:
+                f.write(data_out)
+        elif is_binary and sys.stdout.isatty():
+            error("Stdout is terminal, refusing to print binary file")
+        else:
+            try:
+                sys.stdout.buffer.write(data_out)
+            except AttributeError:
+                if not MYPY:
+                    sys.stdout.write(data_out)
+    # }}}
+
+    data_in = read_input()
+    data_out, is_binary = process_data(data_in)
+    write_output(data_out, is_binary)
