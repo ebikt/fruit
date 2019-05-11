@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+
+import os, sys
+# NO_INSTALL{{{
+# Coding: Both python2.7 and python3 should execute this code correctly
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),'lib'))
+# NO_INSTALL}}}
+from   fruit import *
+MYPY = False
+if MYPY:
+    from typing import Tuple
+
+def error(msg): # type: (str) -> None
+    sys.stderr.write("Err: %s\n" % (msg,))
+    sys.exit(1)
+
+def process_data(data_in): # type: (bytes) -> Tuple[bytes, bool] # {{{
+    firstbyte = bytearray(data_in[0:1])
+    if len(firstbyte) == 0:
+        error("empty input")
+    if firstbyte[0] == 1:
+        try:
+            cfg = decode(data_in)
+        except DecoderError as e:
+            error(e)
+        data_out = dump(cfg)
+        is_binary = False
+    else:
+        try:
+            cfg = load(data_in)
+        except Exception as e:
+            error(e)
+        try:
+            data_out = encode(cfg)
+        except EncoderError as e:
+            error(e)
+        is_binary = True
+    return data_out, is_binary
+# }}}
+
+def read_input(): # type: () -> bytes # {{{
+    if len(sys.argv) > 1:
+        with open(sys.argv[1], "rb") as f:
+            data_in = f.read()
+    else:
+        try:
+            data_in = sys.stdin.buffer.read()
+        except AttributeError:
+            if MYPY:
+                data_in = b''
+            else:
+                data_in = sys.stdin.read()
+    return data_in
+# }}}
+
+def write_output(data_out, is_binary): # type: (bytes, bool) -> None # {{{
+    if len(sys.argv) > 2:
+        with open(sys.argv[2], "wb") as f:
+            f.write(data_out)
+    elif is_binary and sys.stdout.isatty():
+        error("Stdout is terminal, refusing to print binary file")
+    else:
+        try:
+            sys.stdout.buffer.write(data_out)
+        except AttributeError:
+            if not MYPY:
+                sys.stdout.write(data_out)
+# }}}
+
+data_in = read_input()
+data_out, is_binary = process_data(data_in)
+write_output(data_out, is_binary)

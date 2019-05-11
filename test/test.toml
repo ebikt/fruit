@@ -1,0 +1,26 @@
+[chassis]
+type = 19
+partno = h"deadbeef"
+serial = b"-123.456"
+oem = []
+
+[board]
+lang = 19
+date = 1996-01-01T00:00:00Z
+manufacturer = "Supermicro"
+product = p"PackedAsc"
+serial = u"žščř"
+partno = a"H11DSU-iN"
+fru = ""
+oem = []
+
+[product]
+lang = 0
+manufacturer = "Abacus electric, s.r.o. - servis@abacus.cz"
+name = "PCS S1620F-H11U+ SYS"
+model = "AS -1123US-TR4"
+version = "NONE"
+serial = "VR17005815"
+asset = "NONE"
+fru = ""
+oem = []
