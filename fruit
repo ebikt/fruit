@@ -5,6 +5,7 @@ import os, sys
 # Coding: Both python2.7 and python3 should execute this code correctly
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),'lib'))
 # NO_INSTALL}}}
+import fruit.ftoml # Die if there is no TOML
 from   fruit import *
 MYPY = False
 if MYPY:
