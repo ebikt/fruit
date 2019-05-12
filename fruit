@@ -9,11 +9,27 @@ import fruit.ftoml # Die if there is no TOML
 from   fruit import *
 MYPY = False
 if MYPY:
-    from typing import Tuple, Union
+    from typing import Tuple, Union, Dict
+    from fruit.types import AreaValue
 
 def error(msg): # type: (Union[Exception,str]) -> None
     sys.stderr.write("Err: %s\n" % (msg,))
     sys.exit(1)
+
+ARGS = list(sys.argv[1:])
+
+def enhance(to_encode): # type: (Dict[str, AreaValue]) -> Dict[str, AreaValue] # {{{
+    if len(ARGS) and ARGS[0][0] == '{':
+        to_encode2 = load(ARGS.pop(0).encode('utf8'))
+        for k, v in to_encode2.items():
+            if ( k not in to_encode or
+                 not hasattr(to_encode[k], 'keys') or
+                 not hasattr(v, 'keys') ):
+                to_encode[k] = v
+            else:
+                to_encode[k].update(v) # type: ignore
+    return to_encode
+# }}}
 
 def process_data(data_in): # type: (bytes) -> Tuple[bytes, bool] # {{{
     firstbyte = bytearray(data_in[0:1])
@@ -29,6 +45,7 @@ def process_data(data_in): # type: (bytes) -> Tuple[bytes, bool] # {{{
     else:
         try:
             to_encode = load(data_in)
+            to_encode = enhance(to_encode)
         except Exception as e:
             error(e)
         try:
@@ -40,8 +57,8 @@ def process_data(data_in): # type: (bytes) -> Tuple[bytes, bool] # {{{
 # }}}
 
 def read_input(): # type: () -> bytes # {{{
-    if len(sys.argv) > 1:
-        with open(sys.argv[1], "rb") as f:
+    if len(ARGS):
+        with open(ARGS.pop(0), "rb") as f:
             data_in = f.read()
     else:
         try:
@@ -55,8 +72,8 @@ def read_input(): # type: () -> bytes # {{{
 # }}}
 
 def write_output(data_out, is_binary): # type: (bytes, bool) -> None # {{{
-    if len(sys.argv) > 2:
-        with open(sys.argv[2], "wb") as f:
+    if len(ARGS):
+        with open(ARGS.pop(0), "wb") as f:
             f.write(data_out)
     elif is_binary and sys.stdout.isatty():
         error("Stdout is terminal, refusing to print binary file")

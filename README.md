@@ -14,20 +14,22 @@ Synopsis
 ipmitool fru read 0 fru-orig.bin
 ./fruit fru-orig.bin fru.toml
 $EDITOR fru.toml
-./fruit fru.toml fru-new.bin
+./fruit fru.toml '{board{serial="123-456-789"}}' fru-new.bin
 ipmitool fru write 0 fru-new.bin
 ```
 
 
 Usage
 -----
-
-  ./fruit [INPUTFILE [OUTPUTFILE]]
-
+```
+  ./fruit [INPUTFILE.TOML \[TOML.INLINE\] \[OUTPUTFILE.BIN\]]
+  ./fruit [INPUTFILE.BIN  \[OUTPUTFILE.TOML\]]
+```
 If OUTPUTFILE is not specified, fru2yml outputs to stdout (with refusing to write binary data to terminal).
 If INPUTFILE is also not specified then fru2yml reads input from stdin.
+File extensions are not significant, fruit decides by first byte of input: if INPUTFILE starts with byte "\x01" then conversion from binary to toml is performed. Otherwise conversion from toml to binary is performed.
 
-If input file starts with byte "\x01" then conversion from binary to toml is performed. Otherwise conversion from toml to binary is performed.
+If encoding (input file is interpreted as TOML) and second argument starts with `{`, then it is interpreted as inline TOML object and used to override INPUTFILE.
 
 FruIt can be also used as library.
 ```
