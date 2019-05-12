@@ -8,9 +8,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),'lib'
 from   fruit import *
 MYPY = False
 if MYPY:
-    from typing import Tuple
+    from typing import Tuple, Union
 
-def error(msg): # type: (str) -> None
+def error(msg): # type: (Union[Exception,str]) -> None
     sys.stderr.write("Err: %s\n" % (msg,))
     sys.exit(1)
 
@@ -20,18 +20,18 @@ def process_data(data_in): # type: (bytes) -> Tuple[bytes, bool] # {{{
         error("empty input")
     if firstbyte[0] == 1:
         try:
-            cfg = decode(data_in)
+            decoded = decode(data_in)
         except DecoderError as e:
             error(e)
-        data_out = dump(cfg)
+        data_out = dump(decoded)
         is_binary = False
     else:
         try:
-            cfg = load(data_in)
+            to_encode = load(data_in)
         except Exception as e:
             error(e)
         try:
-            data_out = encode(cfg)
+            data_out = encode(to_encode)
         except EncoderError as e:
             error(e)
         is_binary = True
