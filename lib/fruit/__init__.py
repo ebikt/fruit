@@ -1,5 +1,5 @@
-from .decoder import decode
-from .encoder import encode
+from .decoder import *
+from .encoder import *
 from .logging import *
 # TOML is not required for library
 try:

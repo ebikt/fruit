@@ -3,6 +3,8 @@ from .logging       import *
 from .types         import *
 from .utils         import *
 
+__all__ = ["Decoder", "decode"]
+
 import binascii, datetime, codecs
 
 MYPY = False
@@ -17,7 +19,8 @@ else:
     except NameError:
         unichr = chr
 
-class StrDecoders:
+class StrDecoders: # {{{
+    """ Decoders of FRU string representations. """
     @staticmethod
     def hex(data): # type: (bytearray) -> StrWithEncoding
         return Hexadecimal(binascii.b2a_hex(data).decode('utf8'))
@@ -41,10 +44,14 @@ class StrDecoders:
         else:
             return ProperU16String(codecs.decode(data, 'ucs2le'))
 
+    """ List, indexed by FRU string type. Exception has type 3: only LATIN1+ASCII
+        encoder is at position 3. 16bit UNICODE is handled by special `if` condition."""
     decoders = None # type: Tuple[Callable[[bytearray], StrWithEncoding], ...]
 StrDecoders.decoders = (StrDecoders.hex, StrDecoders.bcd, StrDecoders.packed, StrDecoders.l1bytes)
+# }}}
 
-class DecoderArea(object):
+class DecoderArea(object): # {{{
+    """ Area with specification, header position and start offset. """
     pos    = None # type: int
     offset = None # type: int
     spec   = None # type: AreaOffset
@@ -52,14 +59,19 @@ class DecoderArea(object):
         self.spec   = spec
         self.pos    = pos
         self.offset = offset
+# }}}
 
 class Decoder(object):
+    """ IPMI FRU Decoder """
     logger          = None # type: Logger
+
+    # {{{ initialisation
     entry_decoders  = None # type: Dict[Type[EntrySpec], Callable[[EntrySpec, bytearray], Tuple[int, EntryValue]]]
     area_decoders   = None # type: Dict[Type[AreaSpec], Callable[[AreaSpec, bytearray], Tuple[int, AreaValue]]]
     header_decoders = None # type: Dict[Type[AreaSpec], Callable[[AreaSpec, int, int], Union[None, EntryValue, DecoderArea]]]
 
     def __init__(self, logger = None): # type: (Optional[Logger]) -> None
+        """ If no logger is provided fruit.logging.StdErrLogger() is used. """
         if logger is None:
             self.logger = StdErrLogger()
         else:
@@ -80,7 +92,6 @@ class Decoder(object):
         self.header_decoders[AreaByte]   = self.decode_header_byte
         self.header_decoders[AreaOffset] = self.decode_header_area
 
-
     def decodererror(self, msg): # type: (str) -> None
         self.logger.decodererror(msg)
     def warning(self, msg): # type: (str) -> None
@@ -90,9 +101,10 @@ class Decoder(object):
 
     lang      = None # type: int
     msgprefix = None # type: str
+    # }}}
 
+    # {{{ entry decoders
     # Simple decoders are allowed to raise IndexError only by accessing `data`
-
     def decode_byte(self, spec, data): # type: (EntrySpec, bytearray) -> Tuple[int, EntryValue]
         assert isinstance(spec, Byte)
         val = data[0]
@@ -136,7 +148,9 @@ class Decoder(object):
             data = data[l:]
             out.append(s)
         return len(data), out
+    # }}}
 
+    # {{{ area decoders
     def decode_info_table_inner(self, spec, data): #type: (InfoTable, bytearray) -> OrderedDict[str, EntryValue]
         self.msgprefix = "%s." % (spec.name,)
         pos = 0
@@ -206,7 +220,9 @@ class Decoder(object):
     def decode_multivalue(self, spec, data): # type: (AreaSpec, bytearray) -> Tuple[int, AreaValue]
         self.warning("No decoding of multivalue data is performed, just returning hexdump of remaining data")
         return self.area_hexdump(data)
+    # }}}
 
+    # {{{ header decoders
     def decode_header_byte(self, spec, pos, value): # type: (AreaSpec, int, int) -> Union[None, EntryValue, DecoderArea]
         assert isinstance(spec, AreaByte)
         if spec.value != value:
@@ -256,6 +272,7 @@ class Decoder(object):
                 ret[area.name] = r
 
         return ret, areas, checksum_pos + 1
+    # }}}
 
     def decode(self, data): # type: (Union[bytes,bytearray]) -> OrderedDict[str, AreaValue]
         if not isinstance(data, bytearray):
@@ -299,5 +316,6 @@ class Decoder(object):
         return ret
 
 def decode(data_in, logger = None): # type: (Union[bytes, bytearray], Optional[Logger]) -> OrderedDict[str, AreaValue]
+    """ Decode data_in (bytes or bytearray) into OrderedDict of OrderedDict of values. """
     d = Decoder(logger)
     return d.decode(data_in)

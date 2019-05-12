@@ -3,6 +3,8 @@ from .logging       import *
 from .types         import *
 from .utils         import *
 
+__all__ = [ "Encoder", "encode" ]
+
 import binascii, datetime, codecs
 
 MYPY = False
@@ -17,7 +19,8 @@ else:
     except NameError:
         unichr = chr
 
-class StrEncoders:
+class StrEncoders: # {{{
+    """ Encodes into various FRU string representations. """
     @staticmethod
     def hex(text): # type: (unicode)->Tuple[int, bytes]
         return 0, binascii.a2b_hex(text)
@@ -41,20 +44,26 @@ class StrEncoders:
     @classmethod
     def getencoder(cls, text): # type: (str)->Callable[[unicode],Tuple[int, bytes]]
         return getattr(cls, text) # type: ignore
+# }}}
 
-class EncoderArea(object):
+class EncoderArea(object): # {{{
+    """ Area with header position. """
     pos    = None # type: int
     spec   = None # type: AreaOffset
     def __init__(self, spec, pos): # type: (AreaOffset, int) -> None
         self.spec   = spec
         self.pos    = pos
+# }}}
 
 import re
 def nowhite(s): # type: (unicode) -> unicode
     return re.sub(u"\\s", u"", s)
 
 class Encoder(object):
+    """ IPMI FRU Encoder """
     logger         = None # type: Logger
+
+    # {{{ initialisation
     entry_encoders = None # type: Dict[Type[EntrySpec], Callable[[EntrySpec, Optional[EntryValue]], bytearray]]
 
     def __init__(self, logger = None): # type: (Optional[Logger]) -> None
@@ -73,7 +82,9 @@ class Encoder(object):
 
     lang      = None # type: int
     msgprefix = None # type: str
+    # }}}
 
+    # {{{ entry encoders
     def encode_byte(self, spec, cfg): # type: (EntrySpec, Optional[EntryValue]) -> bytearray
         assert isinstance(spec, Byte)
         if cfg is None:
@@ -178,7 +189,9 @@ class Encoder(object):
             ret += self.encode_u16str(U16Str("oem%d" % (i,)), s)
             i += 1
         return ret
+    # }}}
 
+    # {{{ area encoders
     def encode_info_table(self, spec, cfg): # type: (AreaOffset, AreaValue) -> bytearray
         assert isinstance(cfg, dict) or isinstance(cfg, OrderedDict)
         assert isinstance(spec, InfoTable)
@@ -225,8 +238,9 @@ class Encoder(object):
                         % (spec.name, checksum(ret[:-1]), ret[-1]))
                 #Note: we should probably also validate content using decoder
         return ret
+    # }}}
 
-
+    # {{{ header encoders
     def prepare_header(self, cfg): # type: (AreaValue) -> Tuple[bytearray, List[EncoderArea]]
         ret = bytearray()
         areas = [] # type List[EncoderArea]
@@ -248,6 +262,7 @@ class Encoder(object):
                 ret.append(0)
         ret.append(0) # checksup
         return ret, areas
+    # }}}
 
     def encode(self, cfg): # type: (Union[OrderedDict[str, AreaValue], Dict[str, AreaValue]]) -> bytearray
         ret, areas = self.prepare_header(cfg.get("header", {}))

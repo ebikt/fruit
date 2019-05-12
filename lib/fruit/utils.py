@@ -2,9 +2,11 @@ MYPY = False
 __all__ = ["UTC", "checksum", "div8"]
 
 def checksum(b): # type: (bytearray) -> int
+    """ Calculate checksum byte c, so that sum(b) + c is zero (modulo 256). """
     return (256 * len(b) - sum(b)) % 256
 
 def div8(i): # type: (int) -> int
+    """ Return i/8, raise exception if i is not divisible by 8. """
     assert i % 8 == 0
     return int(i/8)
 
@@ -42,17 +44,21 @@ else:
 import codecs # {{{
 
 class CustomCodec(object):
-    name = None # type: str
+    """ Simple custom codec. Only stateless encoding and decoding is supported. """
+    name = None # type: str # to be filled by @register
 
     @classmethod
     def charerror(cls, text, pos, msg): # type: (unicode, int, str) -> UnicodeEncodeError
+        """ UnicodeEncodeError helper for error in single character. """
         return UnicodeEncodeError( cls.name, text, pos, pos+1, msg)
 
     @classmethod
     def byteerror(cls, text, pos, msg): # type: (bytes, int, str) -> UnicodeDecodeError
+        """ UnicodeDecodeError helper for error in single byte. """
         return UnicodeDecodeError( cls.name, text, pos, pos+1, msg)
 
 def register(codec_name): # type: (str) -> Callable[[Type[CustomCodec]], Type[CustomCodec]]
+    """ Registers CustomCodec with name `codec_name`. """
     def decorator(cls): # type: (Type[CustomCodec]) -> Type[CustomCodec]
         if not MYPY:
             assert cls.decode
@@ -86,7 +92,10 @@ class Ucs2Le(CustomCodec):
             if c >= 65536:
                 e = cls.charerror(text, i, 'ordinal not in range(65536)')
                 repl, l = error_handler(e)
-                s.extend([ord(str(x)) for x in repl])
+                if len(repl) % 2 == 0:
+                    s.extend([ord(str(x)) for x in repl])
+                else:
+                    raise e
             else:
                 s.append(c % 256)
                 s.append(c >> 8)
@@ -109,7 +118,15 @@ class Ucs2Le(CustomCodec):
 
 @register('packed_ascii') # {{{
 class Packed(CustomCodec):
-    """ packed_ascii encodes codepoints in range(32,96), packing 4 characters in 3 bytes. """
+    """ packed_ascii encodes codepoints in range(32,96), packing 4 characters
+        in 3 bytes in little endian, i.e. lowest significant bit (bit 0)
+        of first character is lowest significant bit (bit 0) of first byte.
+        Then bit 0 of second character is bit 6 of first byte, bit 2 of second
+        character is bit 0 of second byte and so on.
+
+        Note that if string is one character short to have length divisible by 4,
+        then this encoding adds space at end of such string, because such strings
+        cannot be represented in packed_ascii encoding. """
 
     @classmethod
     def encode(cls, text, error="strict"): # type: (unicode, str) -> Tuple[bytes, int]
@@ -122,7 +139,7 @@ class Packed(CustomCodec):
                 e = cls.charerror(text, i, 'ordinal not in range(32, 96)')
                 repl, l = error_handler(e)
                 c = ord(repl) - 32
-                if c < 0 or c >= (1 << 6):
+                if c < 0 or c >= (1 << 6) or len(repl) != 1:
                     raise e
             if bits > 0:
                 ret[-1] += (c << bits) % 256

@@ -6,9 +6,11 @@ if MYPY:
     from typing import Dict
     unicode = str
     def dump(cfg): # type: (Dict[str, AreaValue]) -> bytes
+        """ Dumps decoded output into enhanced TOML. Returns utf-8 encoded bytes. """
         return b''
 
     def load(cfg): # type: (bytes) -> Dict[str, AreaValue]
+        """ Loads enhanced TOML (bytes, utf-8 encoded) into something, that can be encoded. """
         return {}
 else:
     import toml

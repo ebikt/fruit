@@ -21,30 +21,39 @@ class StrWithEncoding(unicode):
     lang_disagree = None  # type: bool
 
 class Hexadecimal(StrWithEncoding):
+    """ String that was encoded using hexadecimal encoding. """
     encoding = 'hex'
 
 class BcdString(StrWithEncoding):
+    """ String that was encoded using BCD encoding. """
     encoding = 'bcd'
 
 class PackedAscii(StrWithEncoding):
+    """ String that was encoded using packed ascii encoding. """
     encoding = 'packed'
 
 class Latin1String(StrWithEncoding):
+    """ String that was encoded using ascii+latin1 encoding. """
     encoding = 'latin1'
 
 class ProperLatin1String(StrWithEncoding):
+    """ String that was encoded using ascii+latin1 encoding when effective language was English. """
     lang_disagree = False
 
 class MisusedLatin1String(StrWithEncoding):
+    """ String that was encoded using ascii+latin1 encoding when effective language was not English. """
     lang_disagree = True
 
 class U16String(StrWithEncoding):
+    """ String that was encoded using 16-bit unicode encoding. """
     encoding = 'ucs2le'
 
 class ProperU16String(U16String):
+    """ String that was encoded using 16-bit unicode encoding when effective language was not English. """
     lang_disagree = False
 
 class MisusedU16String(U16String):
+    """ String that was encoded using 16-bit unicode encoding when effective language was English. """
     lang_disagree = True
 
 if MYPY:
