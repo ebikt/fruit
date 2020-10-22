@@ -36,11 +36,11 @@ class Latin1String(StrWithEncoding):
     """ String that was encoded using ascii+latin1 encoding. """
     encoding = 'latin1'
 
-class ProperLatin1String(StrWithEncoding):
+class ProperLatin1String(Latin1String):
     """ String that was encoded using ascii+latin1 encoding when effective language was English. """
     lang_disagree = False
 
-class MisusedLatin1String(StrWithEncoding):
+class MisusedLatin1String(Latin1String):
     """ String that was encoded using ascii+latin1 encoding when effective language was not English. """
     lang_disagree = True
 
