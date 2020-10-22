@@ -141,6 +141,6 @@ HEX2BCD={
 # BCD2HEX: Map everything of HEX2BCD in reverse
 BCD2HEX = { v:k for k, v in HEX2BCD.items() }
 # BCD2HEX: effectively disable a-f letters
-BCD2HEX.update( { (ord('a') + x):(0x24B9 + x) for x in range(6) } )
+BCD2HEX.update( { (ord('a') + x):(0x24B6 + x) for x in range(6) } )
 # BCD2HEX: effectively disable A-F letters
-BCD2HEX.update( { (ord('A') + x):(0x24B9 + x) for x in range(6) } )
+BCD2HEX.update( { (ord('A') + x):(0x24B6 + x) for x in range(6) } )
